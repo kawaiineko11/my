@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Interactive Chibi for My Love ❤️</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Kanit', sans-serif, system-ui;
+      background-color: #ffeef2;
+    }
+
+    .game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* UI แผงควบคุมเสียง */
+    .ui-container {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    .btn-menu {
+      background: rgba(255, 255, 255, 0.85);
+      border: none;
+      color: #ff6b81;
+      padding: 8px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      backdrop-filter: blur(6px);
+      transition: transform 0.1s;
+    }
+    .btn-menu:active {
+      transform: scale(0.95);
+    }
+
+    .ui-panel {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 12px 16px;
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.3s ease;
+      opacity: 1;
+      max-height: 150px;
+    }
+
+    .ui-panel.hidden {
+      opacity: 0;
+      max-height: 0;
+      padding: 0 16px;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .ui-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: #4a4a4a;
+    }
+
+    .btn-toggle {
+      background: #ff7675;
+      border: none;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: transform 0.1s, background 0.2s;
+    }
+    .btn-toggle.off {
+      background: #b2bec3;
+    }
+
+    /* กล่องหลักของตัวละคร */
+    .character-wrapper {
+      position: relative;
+      width: 320px;
+      height: 440px;
+      cursor: pointer;
+      animation: idleFloat 3s ease-in-out infinite;
+      z-index: 5;
+    }
+
+    /* ขนาดบน iPad / แท็บเล็ต */
+    @media (min-width: 768px) {
+      .character-wrapper {
+        width: 480px;
+        height: 640px;
+      }
+    }
+
+    /* ขนาดบนคอมพิวเตอร์ */
+    @media (min-width: 1024px) {
+      .character-wrapper {
+        width: 620px;
+        height: 800px;
+      }
+    }
+
+    @keyframes idleFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    /* แอนิเมชันลูบหัว */
+    .character-wrapper.rubbing {
+      animation: rubGentle 0.4s ease-in-out infinite !important;
+    }
+
+    @keyframes rubGentle {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-3px) rotate(1deg); }
+    }
+
+    .layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      transition: transform 0.15s ease-out;
+    }
+
+    /* พื้นหลังใหญ่กว่าตัวละครเล็กน้อย */
+    .layer-bg {
+      z-index: 0;
+      transform: scale(1.12);
+    }
+
+    .layer-hair-back { z-index: 1; }
+    .layer-body      { z-index: 2; }
+    .layer-head      { z-index: 3; }
+    .layer-eye       { z-index: 4; }
+
+    .pressed .layer-head, 
+    .pressed .layer-eye {
+      transform: translateY(5px);
+    }
+
+    /* กล่องข้อความแชท - อยู่ใกล้หัวตัวละคร */
+    .dialog-box {
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%) scale(0);
+      background: white;
+      color: #ff6b81;
+      padding: 10px 18px;
+      border-radius: 25px;
+      font-weight: bold;
+      font-size: 16px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      z-index: 10;
+      white-space: nowrap;
+      pointer-events: none;
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .dialog-box.show {
+      transform: translateX(-50%) scale(1);
+    }
+
+    .dialog-box::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 8px 8px 0;
+      border-style: solid;
+      border-color: white transparent;
+      display: block;
+      width: 0;
+    }
+
+    /* เอฟเฟกต์อิโมจิลอย */
+    .floating-emoji {
+      position: absolute;
+      font-size: 28px;
+      pointer-events: none;
+      z-index: 20;
+      animation: floatUp 1.2s ease-out forwards;
+    }
+
+    @keyframes floatUp {
+      0% {
+        opacity: 1;
+        transform: translateY(0) scale(0.8);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-80px) scale(1.4);
+      }
+    }
+
+    /* กลีบดอกซากุระ */
+    .sakura-petal {
+      position: fixed;
+      background: #ffb7c5;
+      border-radius: 15px 0 15px 0;
+      opacity: 0.85;
+      pointer-events: auto;
+      cursor: grab;
+      z-index: 30;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .sakura-petal:active {
+      cursor: grabbing;
+    }
+  </style>
+</head>
+<body>
+
+<div class="game-container">
+
+  <!-- UI แผงควบคุมเสียง -->
+  <div class="ui-container">
+    <button id="menuToggle" class="btn-menu">⚙️ setting</button>
+    <div class="ui-panel hidden" id="uiPanel">
+      <div class="ui-row">
+        <span>🎵 music:</span>
+        <button id="bgmToggle" class="btn-toggle">open</button>
+        <input type="range" id="bgmVolume" min="0" max="1" step="0.1" value="0.5">
+      </div>
+      <div class="ui-row">
+        <span>🔊 sound:</span>
+        <button id="sfxToggle" class="btn-toggle">close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ตัวละครหลัก -->
+  <div class="character-wrapper" id="character">
+    <div class="dialog-box" id="dialogBox">ข้อความน่ารักๆ</div>
+
+    <img src="images/bg.png"        class="layer layer-bg"        alt="background">
+    <img src="images/hair-back.png" class="layer layer-hair-back" alt="hair">
+    <img src="images/body.png"      class="layer layer-body"      alt="body">
+    <img src="images/head.png"      class="layer layer-head"      alt="head">
+    <img src="images/eye-1.png"     class="layer layer-eye" id="eyeLayer" alt="eyes">
+  </div>
+
+</div>
+
+<!-- Audio Elements -->
+<audio id="bgmAudio" src="audio/bgm.mp3" loop></audio>
+
+<script>
+  const messages = [
+    "亲爱的，你吃东西了吗？💖",
+    "辛苦你了，谢谢你一直这么努力 🥰",
+    "我会一直陪在你身边的",
+    "亲爱的，谢谢你一直愿意听我说话。虽然有时候我可能说得乱七八糟的，但你还是愿意听我说，谢谢你",
+    "不要太勉强自己，也不要太累了哦 ✨",
+    "亲爱的，快过来让我抱抱你",
+    "累不累呀？过来让我帮你按摩一下吧 🤗",
+    "我的宝贝是最棒的！🐱",
+    "没有人欺负我最爱的宝贝吧？",
+    "我想你了💕"
+  ];
+
+  const emojiList = ["❤️", "💖", "✨", "🌸", "🐱"];
+
+  let bgmEnabled = true;
+  let sfxEnabled = true;
+  let eyeTimeout = null;
+  let isRubbing = false;
+  let rubTimer = null;
+  let lastX = 0;
+  let moveDistance = 0;
+  let lastEmojiTime = 0;
+
+  const character = document.getElementById('character');
+  const eyeLayer = document.getElementById('eyeLayer');
+  const dialogBox = document.getElementById('dialogBox');
+  const bgmAudio = document.getElementById('bgmAudio');
+  const bgmToggle = document.getElementById('bgmToggle');
+  const bgmVolume = document.getElementById('bgmVolume');
+  const sfxToggle = document.getElementById('sfxToggle');
+  const menuToggle = document.getElementById('menuToggle');
+  const uiPanel = document.getElementById('uiPanel');
+
+  menuToggle.addEventListener('click', () => {
+    uiPanel.classList.toggle('hidden');
+  });
+
+  bgmToggle.addEventListener('click', () => {
+    bgmEnabled = !bgmEnabled;
+    bgmToggle.innerText = bgmEnabled ? 'open' : 'close';
+    bgmToggle.classList.toggle('off', !bgmEnabled);
+    if (bgmEnabled) bgmAudio.play();
+    else bgmAudio.pause();
+  });
+
+  bgmVolume.addEventListener('input', (e) => {
+    bgmAudio.volume = e.target.value;
+  });
+
+  sfxToggle.addEventListener('click', () => {
+    sfxEnabled = !sfxEnabled;
+    sfxToggle.innerText = sfxEnabled ? 'open' : 'close';
+    sfxToggle.classList.toggle('off', !sfxEnabled);
+  });
+
+  function playRandomSFX() {
+    if (!sfxEnabled) return;
+    const randomNum = Math.floor(Math.random() * 6) + 1;
+    const sfx = new Audio(`audio/sound${randomNum}.mp3`);
+    sfx.play();
+  }
+
+  window.addEventListener('pointerdown', () => {
+    if (bgmEnabled && bgmAudio.paused) {
+      bgmAudio.play().catch(() => {});
+    }
+  }, { once: true });
+
+  character.addEventListener('pointerdown', (e) => {
+    if (isRubbing) return;
+
+    eyeLayer.src = 'images/eye-2.png';
+    character.classList.add('pressed');
+
+    const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+    dialogBox.innerText = randomMsg;
+    dialogBox.classList.add('show');
+
+    playRandomSFX();
+
+    clearTimeout(eyeTimeout);
+    eyeTimeout = setTimeout(() => {
+      if (!isRubbing) {
+        eyeLayer.src = 'images/eye-1.png';
+        character.classList.remove('pressed');
+        dialogBox.classList.remove('show');
+      }
+    }, 1000);
+
+    lastX = e.clientX;
+    moveDistance = 0;
+  });
+
+  character.addEventListener('pointermove', (e) => {
+    if (e.buttons === 0 && e.pointerType === 'mouse') return;
+
+    const currentX = e.clientX;
+    moveDistance += Math.abs(currentX - lastX);
+    lastX = currentX;
+
+    if (moveDistance > 40) {
+      startRubbing(e.clientX, e.clientY);
+    }
+  });
+
+  function startRubbing(x, y) {
+    isRubbing = true;
+    eyeLayer.src = 'images/eye-3.png';
+    character.classList.add('rubbing');
+    character.classList.remove('pressed');
+
+    const now = Date.now();
+    if (now - lastEmojiTime > 300 && Math.random() < 0.4) {
+      spawnHeart(x, y);
+      lastEmojiTime = now;
+    }
+
+    clearTimeout(rubTimer);
+    rubTimer = setTimeout(() => {
+      isRubbing = false;
+      character.classList.remove('rubbing');
+      eyeLayer.src = 'images/eye-1.png';
+      moveDistance = 0;
+    }, 500);
+  }
+
+  function spawnHeart(x, y) {
+    const emojiEl = document.createElement('div');
+    emojiEl.className = 'floating-emoji';
+    emojiEl.innerText = emojiList[Math.floor(Math.random() * emojiList.length)];
+    
+    emojiEl.style.left = `${x - 14 + (Math.random() * 30 - 15)}px`;
+    emojiEl.style.top = `${y - 25}px`;
+
+    document.body.appendChild(emojiEl);
+
+    setTimeout(() => {
+      emojiEl.remove();
+    }, 1200);
+  }
+
+  // --- ระบบกลีบดอกซากุระร่วง ---
+  const petals = [];
+  const maxPetals = 22;
+
+  class Petal {
+    constructor(index, total) {
+      this.el = document.createElement('div');
+      this.el.className = 'sakura-petal';
+      
+      this.zoneWidth = window.innerWidth / total;
+      this.initSpawn(index); // คงค่าตอนเปิดเว็บครั้งแรกไว้เป๊ะๆ ไม่แตะต้อง
+      
+      this.isHeld = false;
+      this.dragOffsetX = 0;
+      this.dragOffsetY = 0;
+
+      this.el.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        this.isHeld = true;
+        this.dragOffsetX = e.clientX - this.x;
+        this.dragOffsetY = e.clientY - this.y;
+        this.el.setPointerCapture(e.pointerId);
+      });
+
+      this.el.addEventListener('pointermove', (e) => {
+        if (this.isHeld) {
+          this.x = e.clientX - this.dragOffsetX;
+          this.y = e.clientY - this.dragOffsetY;
+          this.updatePosition();
+        }
+      });
+
+      const releaseHandler = (e) => {
+        if (this.isHeld) {
+          this.isHeld = false;
+          try { this.el.releasePointerCapture(e.pointerId); } catch(err){}
+        }
+      };
+
+      this.el.addEventListener('pointerup', releaseHandler);
+      this.el.addEventListener('pointercancel', releaseHandler);
+
+      document.body.appendChild(this.el);
+    }
+
+    initSpawn(index) {
+      this.zoneWidth = window.innerWidth / maxPetals;
+      this.x = (index * this.zoneWidth) + (Math.random() * this.zoneWidth);
+      this.y = -50 - (Math.random() * 750);
+
+      this.size = 12 + Math.random() * 10;
+      this.speedY = 1 + Math.random() * 1.5;
+      this.swingAmp = 1 + Math.random() * 2; 
+      this.swingSpeed = 0.015 + Math.random() * 0.02;
+      this.step = Math.random() * 100;
+      this.rotation = Math.random() * 360;
+      this.rotSpeed = (Math.random() - 0.5) * 2;
+      
+      this.el.style.width = `${this.size}px`;
+      this.el.style.height = `${this.size * 1.4}px`;
+    }
+
+    reset() {
+      // ล็อกค่า this.x เดิมไว้ (ให้อยู่ในตำแหน่ง/เลนเดิมเป๊ะๆ) แล้วเปลี่ยนแค่ Y ให้เด้งขึ้นไปบนสุดนอกจอ
+      this.y = -50 - (Math.random() * 50);
+
+      this.size = 12 + Math.random() * 10;
+      this.speedY = 1 + Math.random() * 1.5;
+      this.swingAmp = 1 + Math.random() * 2; 
+      this.swingSpeed = 0.015 + Math.random() * 0.02;
+      this.step = Math.random() * 100;
+      this.rotation = Math.random() * 360;
+      this.rotSpeed = (Math.random() - 0.5) * 2;
+      
+      this.el.style.width = `${this.size}px`;
+      this.el.style.height = `${this.size * 1.4}px`;
+    }
+
+    update() {
+      if (!this.isHeld) {
+        this.y += this.speedY;
+        this.step += this.swingSpeed;
+        this.x += Math.sin(this.step) * this.swingAmp; 
+        this.rotation += this.rotSpeed;
+
+        // ถ้าตกพ้นขอบล่างจอ ให้เรียก reset โดยที่ this.x ยังเป็นค่าเดิม
+        if (this.y > window.innerHeight + 30) {
+          this.reset();
+        }
+
+        if (this.x < -30) this.x = window.innerWidth + 20;
+        if (this.x > window.innerWidth + 30) this.x = -20;
+      }
+      this.updatePosition();
+    }
+
+    updatePosition() {
+      this.el.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) rotate(${this.rotation}deg)`;
+    }
+  }
+
+  for (let i = 0; i < maxPetals; i++) {
+    petals.push(new Petal(i, maxPetals));
+  }
+
+  function animatePetals() {
+    petals.forEach((p) => p.update());
+    requestAnimationFrame(animatePetals);
+  }
+  animatePetals();
+</script>
+</body>
+</html>
